@@ -51,6 +51,7 @@ const checkLabel = async (gmail) => {
 	}
 
 	for (const label of labels) {
+		// console.log(`$${label.id} - ${label.name}`);
 		if (label.name === labelName) {
 			return label.id;
 		}
@@ -62,6 +63,7 @@ const checkLabel = async (gmail) => {
  * Create A labels in the user's account.
  *
  * @param {gmail_v1.Gmail} gmail A Gmail API client.
+ * @return {Promise<string | null | undefined>} Returns `string` | `null` | `undefined`
  */
 const createLabel = async (gmail) => {
 	const res = await gmail.users.labels.create({
@@ -79,24 +81,24 @@ const createLabel = async (gmail) => {
 	}
 
 	return null;
-	// console.log('res => ', res);
 };
 
 /**
  * Appends the label provided to the given messages.
  *
  * @param {gmail_v1.Gmail} gmail A Gmail API client.
- * @param {gmail_v1.Schema$Message[]} messages Messages array that contains a list of messages which has to appended with the label `labelId`
+ * @param {gmail_v1.Schema$Message} message Messages array that contains a list of messages which has to appended with the label `labelId`
  */
-const appendLabel = async (gmail, labelId, messages = []) => {
-	messages?.map(async ({ id }) => {
-		await gmail.users.messages.modify({
-			userId: 'me',
-			id,
-			requestBody: {
-				addLabelIds: [labelId],
-			},
-		});
+const appendLabel = async (gmail, labelId, message) => {
+	const { id } = message;
+
+	await gmail.users.messages.modify({
+		userId: 'me',
+		id,
+		requestBody: {
+			addLabelIds: [labelId],
+			removeLabelIds: ['UNREAD'],
+		},
 	});
 };
 

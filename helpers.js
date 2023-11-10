@@ -1,3 +1,5 @@
+const base64 = require('base64-js');
+
 /**
  * Gets the Mail ID of the user who sent a message.
  *
@@ -34,7 +36,29 @@ ${message}`;
 	return encodedBody.replace(/\+/g, '-').replace(/\//g, '_');
 };
 
+function decodeBase64(encodedBody) {
+	const decodedBody = base64.toByteArray(
+		encodedBody.replace(/\-/g, '+').replace(/_/g, '/'),
+	);
+	return Buffer.from(decodedBody).toString('utf8');
+}
+
+const filterHeaders = (headers) => {
+	let res = {};
+	headers.map(({ name, value }, _) => {
+		res = {
+			...res,
+			[name]: value,
+		};
+	});
+
+	// console.log('send response to: ', res);
+	return res;
+};
+
 module.exports = {
 	makeBody,
 	getFromAddress,
+	decodeBase64,
+	filterHeaders,
 };

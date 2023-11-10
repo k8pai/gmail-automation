@@ -3,13 +3,14 @@ const path = require('path');
 const process = require('process');
 const { authenticate } = require('@google-cloud/local-auth');
 const { google } = require('googleapis');
-const base64 = require('base64-js');
 const {
 	appendLabel,
-	listLabels,
 	checkLabel,
 	createLabel,
 } = require('./controllers/label.controller');
+const { getFromAddress } = require('./helpers');
+const { getUnreadThreads } = require('./controllers/thread.controller');
+const { sendMail } = require('./controllers/message.controller');
 
 let lastCheckTimeStamp = new Date().toLocaleDateString();
 
@@ -84,24 +85,13 @@ async function authorize() {
 	return client;
 }
 
-const getUnreadThreads = async (gmail) => {
-	const listThreads = await gmail.users.threads.list({
-		userId: 'me',
-		q: `is:unread after:${lastCheckTimeStamp}`,
-	});
-
-	// console.log('data found ', listThreads.data.resultSizeEstimate);
-	if (
-		listThreads.data.resultSizeEstimate === 0 ||
-		!listThreads.data.threads
-	) {
-		console.log('no new mails are found after ', lastCheckTimeStamp);
-		return [];
-	}
-
-	return listThreads.data.threads;
-};
-
+/**
+ * Returns all the unread thread after the specificied Vaccation period;
+ *
+ * @param {gmail_v1.Gmail} gmail A Gmail API client.
+ * @param {gmail_v1.Schema$Thread[]} threads Threads.
+ * @return {Promise<{messages: gmail_v1.Schema$Message[], threads: gmail_v1.Schema$Thread[]}>} Returns the list of threads that are unread and came inbox after specific timestamp.
+ */
 const filterNoPriorReplies = async (gmail, threads) => {
 	let filteredThreads = [],
 		filterMessages = [];
@@ -130,6 +120,7 @@ const filterNoPriorReplies = async (gmail, threads) => {
 						id: message.id,
 						snippet: message.snippet,
 						to: getFromAddress(message.payload.headers),
+						payload: message.payload,
 				  },
 		);
 		let isRepliedByMe = messages.includes(true);
@@ -141,9 +132,9 @@ const filterNoPriorReplies = async (gmail, threads) => {
 		if (isRepliedByMe) {
 			continue;
 		}
-		// messages.map((message) => {
-		// 	console.log(message);
-		// });
+
+		// response.data.messages.map((message) => console.log(message));
+
 		filteredThreads.push(thread);
 		filterMessages.push({
 			...messages[messages.length - 1],
@@ -153,66 +144,9 @@ const filterNoPriorReplies = async (gmail, threads) => {
 	return { messages: filterMessages, threads: filteredThreads };
 };
 
-const getFromAddress = (headers) => {
-	let res = headers.find(({ name, value }, _) => name === 'From');
-
-	// console.log('send response to: ', res);
-	return res.value;
-};
-
-function makeBody(to, from, subject, message) {
-	const str = `Content-Type: text/plain; charset="UTF-8"
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-to: ${to}
-from: ${from}
-subject: ${subject}
-
-
-${message}`;
-
-	const encodedBody = base64.fromByteArray(Buffer.from(str));
-	return encodedBody.replace(/\+/g, '-').replace(/\//g, '_');
-}
-
-const sendMail = async (auth, messages) => {
-	const gmail = google.gmail({ version: 'v1', auth });
-	for (const message of messages) {
-		// Get the email's subject and body
-		const { id, snippet: subject, to: sendTo } = message;
-
-		const body = await gmail.users.messages
-			.get({
-				userId: 'me',
-				id,
-			})
-			.then((response) => response.data);
-
-		console.log(body);
-
-		// Compose a reply email
-		const replyOptions = {
-			from: 'me',
-			to: sendTo,
-			subject: `RE: ${subject}`,
-			text: `Hey,\n\nI'm on my vaccations.\n\nI'll ping you when i'm back...\n\n`,
-		};
-
-		const requestBody = {
-			raw: makeBody(sendTo, 'me', `RE: ${subject}`, replyOptions.text),
-		};
-
-		// Send the reply email
-		gmail.users.messages.send({
-			userId: 'me',
-			requestBody,
-		});
-	}
-};
-
 authorize()
 	.then(async (auth) => {
-		let interval = 10000;
+		let interval = 8000;
 		const gmail = google.gmail({ version: 'v1', auth });
 
 		// Check the label and return the label id of the label if present...
@@ -220,25 +154,27 @@ authorize()
 
 		// If there's no labelId is found after check, then create a new label and store the label id in it.
 		if (!labelId) {
-			console.log(
-				'Label was not found and we are going to create the label for now...',
-			);
 			labelId = await createLabel(gmail);
-		} else {
-			console.log('label already exist....');
 		}
 
+		let timestamp = new Date().toLocaleDateString();
+
 		setInterval(async () => {
-			console.log('Interval marked');
+			console.log(`Running checks: ${new Date().toLocaleTimeString()}`);
 
-			// const threads = await getUnreadThreads(gmail);
-			// const filteredThreads = await filterNoPriorReplies(
-			// 	gmail,
-			// 	threads.slice(0, 10),
-			// );
+			const unreadThreads = await getUnreadThreads(gmail, timestamp);
+			const { messages, threads } = await filterNoPriorReplies(
+				gmail,
+				unreadThreads,
+			);
 
-			// await sendMail(auth, filteredThreads.messages);
-			await appendLabel(gmail, labelId, []);
+			if (messages.length) {
+				console.log(`Found ${messages.length} New UnRead Mails.`);
+			}
+			for (const message of messages) {
+				await sendMail(gmail, message);
+				await appendLabel(gmail, labelId, message);
+			}
 		}, interval);
 	})
 	.catch(console.error);
