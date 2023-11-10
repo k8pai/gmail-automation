@@ -8,11 +8,10 @@ const {
 	checkLabel,
 	createLabel,
 } = require('./controllers/label.controller');
-const { getFromAddress } = require('./helpers');
+const { getFromAddress } = require('./lib/helpers');
 const { getUnreadThreads } = require('./controllers/thread.controller');
 const { sendMail } = require('./controllers/message.controller');
-
-let lastCheckTimeStamp = new Date().toLocaleDateString();
+const { interval } = require('./congif');
 
 // const labelName = 'VACCATION';
 let labelId = null;
@@ -146,7 +145,6 @@ const filterNoPriorReplies = async (gmail, threads) => {
 
 authorize()
 	.then(async (auth) => {
-		let interval = 8000;
 		const gmail = google.gmail({ version: 'v1', auth });
 
 		// Check the label and return the label id of the label if present...

@@ -7,6 +7,7 @@
 const config = {
 	labelName: 'VACCATION',
 	vaccationStarts: '11/12/2023',
+	interval: 8000,
 };
 
 module.exports = {

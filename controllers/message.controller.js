@@ -1,4 +1,4 @@
-const { makeBody, decodeBase64, filterHeaders } = require('../helpers');
+const { makeBody, decodeBase64, filterHeaders } = require('../lib/helpers');
 const { decode } = require('he');
 
 /**
