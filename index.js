@@ -11,7 +11,7 @@ const {
 const { getFromAddress } = require('./lib/helpers');
 const { getUnreadThreads } = require('./controllers/thread.controller');
 const { sendMail } = require('./controllers/message.controller');
-const { interval } = require('./congif');
+const { interval, vaccationStarts } = require('./congif');
 
 // const labelName = 'VACCATION';
 let labelId = null;
@@ -147,20 +147,23 @@ authorize()
 	.then(async (auth) => {
 		const gmail = google.gmail({ version: 'v1', auth });
 
-		// Check the label and return the label id of the label if present...
-		labelId = await checkLabel(gmail);
-
-		// If there's no labelId is found after check, then create a new label and store the label id in it.
-		if (!labelId) {
-			labelId = await createLabel(gmail);
-		}
-
-		let timestamp = new Date().toLocaleDateString();
+		let timestamp = new Date('10/05/2023').toLocaleDateString();
 
 		setInterval(async () => {
+			// Check the label and return the label id of the label if present...
+			labelId = await checkLabel(gmail);
+
+			// If there's no labelId is found after check, then create a new label and store the label id in it.
+			if (!labelId) {
+				labelId = await createLabel(gmail);
+			}
+
 			console.log(`Running checks: ${new Date().toLocaleTimeString()}`);
 
-			const unreadThreads = await getUnreadThreads(gmail, timestamp);
+			const unreadThreads = await getUnreadThreads(
+				gmail,
+				vaccationStarts,
+			);
 			const { messages, threads } = await filterNoPriorReplies(
 				gmail,
 				unreadThreads,

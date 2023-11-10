@@ -18,7 +18,7 @@ const sendMail = async (gmail, message) => {
 	const replyOptions = {
 		from: 'me',
 		to: sendTo,
-		subject: `RE: ${filteredHeaders.Subject ?? 'Vaccation Alert'}`,
+		subject: `RE: ${decode(filteredHeaders.Subject) ?? 'Vaccation Alert'}`,
 		text: `Hey,\n\nI'm on my vaccations.\n\nI'll ping you when i'm back...\n\n`,
 	};
 

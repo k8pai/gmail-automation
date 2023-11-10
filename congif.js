@@ -6,7 +6,7 @@
  */
 const config = {
 	labelName: 'VACCATION',
-	vaccationStarts: '11/12/2023',
+	vaccationStarts: '11/10/2023',
 	interval: 8000,
 };
 
