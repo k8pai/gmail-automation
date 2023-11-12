@@ -4,8 +4,11 @@
 	"description": "Backend for the OpenInApp Backend Developer Gmail-Automation Assignment",
 	"main": "index.js",
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1",
-		"check": "nodemon ."
+		"dev": "del token.json && node .",
+		"test": "node ."
+	},
+	"exports": {
+		"./controllers/": "./controllers/*.js"
 	},
 	"keywords": [
 		"gmail",

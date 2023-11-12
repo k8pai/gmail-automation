@@ -1,6 +1,9 @@
 const { makeBody, decodeBase64, filterHeaders } = require('../lib/helpers');
 const { decode } = require('he');
 
+// import { makeBody, filterHeaders } from '../lib/helpers';
+// import { decode } from 'he';
+
 /**
  * Sends a new Mail.
  *
@@ -31,8 +34,7 @@ const sendMail = async (gmail, message) => {
 		userId: 'me',
 		requestBody,
 	});
+	console.log(`Replied to: ${sendTo}\nSubject: ${replyOptions.subject}`);
 };
 
-module.exports = {
-	sendMail,
-};
+module.exports = { sendMail };

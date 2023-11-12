@@ -11,20 +11,11 @@ const {
 const { getFromAddress } = require('./lib/helpers');
 const { getUnreadThreads } = require('./controllers/thread.controller');
 const { sendMail } = require('./controllers/message.controller');
-const { interval, vaccationStarts } = require('./congif');
+const { interval, vaccationStarts, scopes } = require('./config');
 
-// const labelName = 'VACCATION';
+// Global variable for storing label id of the token that we are about to create.
 let labelId = null;
 
-// If modifying these scopes, delete token.json.
-const SCOPES = [
-	'https://mail.google.com/',
-	'https://www.googleapis.com/auth/gmail.send',
-	'https://www.googleapis.com/auth/gmail.labels',
-	'https://www.googleapis.com/auth/gmail.modify',
-	'https://www.googleapis.com/auth/gmail.compose',
-	'https://www.googleapis.com/auth/gmail.readonly',
-];
 // The file token.json stores the user's access and refresh tokens, and is
 // created automatically when the authorization flow completes for the first
 // time.
@@ -75,7 +66,7 @@ async function authorize() {
 		return client;
 	}
 	client = await authenticate({
-		scopes: SCOPES,
+		scopes,
 		keyfilePath: CREDENTIALS_PATH,
 	});
 	if (client.credentials) {
@@ -143,39 +134,54 @@ const filterNoPriorReplies = async (gmail, threads) => {
 	return { messages: filterMessages, threads: filteredThreads };
 };
 
-authorize()
-	.then(async (auth) => {
-		const gmail = google.gmail({ version: 'v1', auth });
+async function main() {
+	// Authenticating the user.
+	const auth = await authorize()
+		.then((client) => client)
+		.catch((error) => error);
 
-		let timestamp = new Date('10/05/2023').toLocaleDateString();
+	// initializing the gmail client.
+	const gmail = google.gmail({ version: 'v1', auth });
 
-		setInterval(async () => {
-			// Check the label and return the label id of the label if present...
-			labelId = await checkLabel(gmail);
+	// timestamp for the start of the vaccation or take directly from `./config.js`
+	let timestamp = new Date('10/05/2023').toLocaleDateString();
 
-			// If there's no labelId is found after check, then create a new label and store the label id in it.
-			if (!labelId) {
-				labelId = await createLabel(gmail);
-			}
+	setInterval(async () => {
+		// Check the label and return the labelId of the label if present...
+		labelId = await checkLabel(gmail);
 
-			console.log(`Running checks: ${new Date().toLocaleTimeString()}`);
+		// If there's no labelId is found after check, then create a new label and store the label id in it.
+		if (!labelId) {
+			labelId = await createLabel(gmail);
+		}
 
-			const unreadThreads = await getUnreadThreads(
-				gmail,
-				vaccationStarts,
-			);
-			const { messages, threads } = await filterNoPriorReplies(
-				gmail,
-				unreadThreads,
-			);
+		// logs
+		console.log(`Running checks: ${new Date().toLocaleTimeString()}`);
 
-			if (messages.length) {
-				console.log(`Found ${messages.length} New UnRead Mails.`);
-			}
-			for (const message of messages) {
-				await sendMail(gmail, message);
-				await appendLabel(gmail, labelId, message);
-			}
-		}, interval);
-	})
-	.catch(console.error);
+		// Gets Threads those are unread From the start of the Vaccation Date.
+		const unreadThreads = await getUnreadThreads(gmail, vaccationStarts);
+
+		// Filtering Messages to satisfy
+		// - no prior email has been sent by you.
+		// - should be replied back with one and only one auto reply.
+		const { messages, threads } = await filterNoPriorReplies(
+			gmail,
+			unreadThreads,
+		);
+
+		// logs when new messages are found
+		if (messages.length) {
+			console.log(`Found ${messages.length} New UnRead Mails.`);
+		}
+
+		// iterating through all the new messages found.
+		// - Sends a reply for each message found.
+		// - Appends each message under the label.
+		for (const message of messages) {
+			await sendMail(gmail, message);
+			await appendLabel(gmail, labelId, message);
+		}
+	}, interval); // defined in config.js
+}
+
+main();

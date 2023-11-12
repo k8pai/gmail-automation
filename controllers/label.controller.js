@@ -1,4 +1,4 @@
-const { labelName } = require('../congif');
+const { labelName } = require('../config');
 
 /**
  * Lists the labels in the user's account.
@@ -15,12 +15,6 @@ const listLabels = async (gmail, config) => {
 		console.log('No labels found.');
 		return;
 	}
-	// console.log('Labels:');
-	// labels.forEach((label) => {
-	// 	console.log(
-	// 		`- ${label.name} ${label.name === labelName ? label.id : null}`,
-	// 	);
-	// });
 
 	for (const label of labels) {
 		if (label.name === labelName) {
@@ -100,11 +94,7 @@ const appendLabel = async (gmail, labelId, message) => {
 			removeLabelIds: ['UNREAD'],
 		},
 	});
+	console.log(`Appended mail to ${labelName}!`);
 };
 
-module.exports = {
-	appendLabel,
-	listLabels,
-	createLabel,
-	checkLabel,
-};
+module.exports = { appendLabel, listLabels, createLabel, checkLabel };

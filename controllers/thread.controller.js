@@ -21,6 +21,4 @@ const getUnreadThreads = async (gmail, timestamp) => {
 	return threads;
 };
 
-module.exports = {
-	getUnreadThreads,
-};
+module.exports = { getUnreadThreads };
